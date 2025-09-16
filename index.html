@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>토글 녹음 버튼 예제</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+                Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px;
+            background-color: #f0f2f5;
+        }
+        h1 {
+            color: #1c1e21;
+        }
+        #recordBtn {
+            font-size: 18px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            min-width: 150px;
+            background-color: #1877f2;
+            color: white;
+        }
+        #recordBtn.recording {
+            background-color: #e74c3c;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(231, 76, 60, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+        }
+        #status {
+            margin-top: 15px;
+            font-size: 16px;
+            color: #606770;
+            height: 20px;
+        }
+        #audioContainer {
+            margin-top: 20px;
+        }
+        audio {
+            width: 320px;
+        }
+    </style>
+</head>
+<body>
+    <h1>녹음기</h1>
+    <button id="recordBtn">녹음 시작</button>
+    <div id="status">버튼을 눌러 녹음을 시작하세요.</div>
+    <div id="audioContainer"></div>
+
+    <script>
+        const recordBtn = document.getElementById('recordBtn');
+        const statusDiv = document.getElementById('status');
+        const audioContainer = document.getElementById('audioContainer');
+
+        let isRecording = false;
+        let mediaRecorder;
+        let audioChunks = [];
+
+        recordBtn.onclick = async () => {
+            // 녹음 시작 로직
+            if (!isRecording) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+
+                    // 녹음 데이터 수집
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+
+                    // 녹음 중지 시 UI 생성
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+
+                        // 기존 오디오 플레이어 삭제 후 새로 생성
+                        audioContainer.innerHTML = '';
+                        const audioPlayer = document.createElement('audio');
+                        audioPlayer.src = audioUrl;
+                        audioPlayer.controls = true;
+                        audioContainer.appendChild(audioPlayer);
+
+                        // 다음 녹음을 위해 초기화
+                        audioChunks = [];
+                    };
+
+                    mediaRecorder.start();
+                    
+                    // UI 상태 변경: 녹음 중
+                    isRecording = true;
+                    recordBtn.textContent = '녹음 중지';
+                    recordBtn.classList.add('recording');
+                    statusDiv.textContent = '녹음 중입니다...';
+                    audioContainer.innerHTML = ''; // 이전 플레이어 삭제
+
+                } catch (error) {
+                    console.error("마이크 접근 오류:", error);
+                    statusDiv.textContent = '마이크 권한을 허용해주세요.';
+                }
+            } 
+            // 녹음 중지 로직
+            else {
+                if (mediaRecorder) {
+                    mediaRecorder.stop();
+                    
+                    // UI 상태 변경: 대기
+                    isRecording = false;
+                    recordBtn.textContent = '녹음 시작';
+                    recordBtn.classList.remove('recording');
+                    statusDiv.textContent = '녹음이 완료되었습니다. 재생해보세요.';
+                }
+            }
+        };
+    </script>
+</body>
+</html>
